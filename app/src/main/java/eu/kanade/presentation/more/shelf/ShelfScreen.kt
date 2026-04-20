@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,16 +19,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,22 +46,27 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShelfScreen(
-    viewModel: ShelfViewModel = viewModel(),
+    state: ShelfUiState,
+    onRefresh: () -> Unit = {},
 ) {
-    val state by viewModel.state.collectAsState()
     var selectedItem by remember { mutableStateOf<ShelfItem?>(null) }
     val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val backdropUrl = selectedItem?.bannerUrl?.takeIf { it.isNotBlank() }
+        ?: selectedItem?.imageUrl?.takeIf { it.isNotBlank() }
+        ?: state.featured?.bannerUrl?.takeIf { it.isNotBlank() }
+        ?: state.featured?.imageUrl
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Cinematic backdrop — blurred cover of selected/featured item
-        val backdropUrl = selectedItem?.imageUrl ?: state.featured?.imageUrl
+
+        // Cinematic blurred backdrop
         AnimatedVisibility(
             visible = !backdropUrl.isNullOrBlank(),
             enter = fadeIn(tween(800)),
@@ -70,75 +78,39 @@ fun ShelfScreen(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .blur(28.dp),
+                    .blur(32.dp),
             )
         }
 
-        // Dark scrim over backdrop
+        // Dark scrim
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            Color.Black.copy(alpha = 0.72f),
-                            Color.Black.copy(alpha = 0.88f),
+                            Color.Black.copy(alpha = 0.75f),
+                            Color.Black.copy(alpha = 0.90f),
                         ),
                     ),
                 ),
         )
 
-        // Content
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 32.dp),
-        ) {
-            item {
-                ShelfHero(item = state.featured)
-            }
-
-            if (state.manhwa.isNotEmpty()) {
-                item {
-                    ShelfRow(
-                        title = "Manhwa",
-                        items = state.manhwa,
-                        onItemClick = { selectedItem = it },
-                    )
-                }
-            }
-
-            if (state.manga.isNotEmpty()) {
-                item {
-                    ShelfRow(
-                        title = "Manga",
-                        items = state.manga,
-                        onItemClick = { selectedItem = it },
-                    )
-                }
-            }
-
-            if (state.music.isNotEmpty()) {
-                item {
-                    ShelfRow(
-                        title = "Music",
-                        items = state.music,
-                        onItemClick = { selectedItem = it },
-                    )
-                }
-            }
-
-            if (state.books.isNotEmpty()) {
-                item {
-                    ShelfRow(
-                        title = "Books",
-                        items = state.books,
-                        onItemClick = { selectedItem = it },
-                    )
-                }
+        if (state.loading) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 32.dp),
+            ) {
+                item { ShelfHero(item = state.featured, onRefresh = onRefresh) }
+                if (state.manhwa.isNotEmpty()) item { ShelfRow(title = "Manhwa", items = state.manhwa, onItemClick = { selectedItem = it }) }
+                if (state.manga.isNotEmpty()) item { ShelfRow(title = "Manga", items = state.manga, onItemClick = { selectedItem = it }) }
+                if (state.music.isNotEmpty()) item { ShelfRow(title = "Music", items = state.music, onItemClick = { selectedItem = it }) }
+                if (state.books.isNotEmpty()) item { ShelfRow(title = "Books", items = state.books, onItemClick = { selectedItem = it }) }
             }
         }
 
-        // Spotlight bottom sheet
         if (selectedItem != null) {
             ModalBottomSheet(
                 onDismissRequest = { selectedItem = null },
@@ -152,11 +124,11 @@ fun ShelfScreen(
 }
 
 @Composable
-private fun ShelfHero(item: ShelfItem?) {
+private fun ShelfHero(item: ShelfItem?, onRefresh: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(280.dp)
+            .height(260.dp)
             .padding(16.dp),
         contentAlignment = Alignment.BottomStart,
     ) {
@@ -165,10 +137,7 @@ private fun ShelfHero(item: ShelfItem?) {
                 text = "NEO-OTAKU ARCHIVE",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
-                letterSpacing = androidx.compose.ui.unit.TextUnit(
-                    value = 3f,
-                    type = androidx.compose.ui.unit.TextUnitType.Sp,
-                ),
+                letterSpacing = TextUnit(3f, TextUnitType.Sp),
             )
             Text(
                 text = "G1NYU Shelf",
@@ -179,9 +148,19 @@ private fun ShelfHero(item: ShelfItem?) {
                 Text(
                     text = item.title,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.7f),
+                    color = Color.White.copy(alpha = 0.65f),
                 )
             }
+        }
+        IconButton(
+            onClick = onRefresh,
+            modifier = Modifier.align(Alignment.TopEnd),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Refresh,
+                contentDescription = "Refresh shelf",
+                tint = Color.White.copy(alpha = 0.7f),
+            )
         }
     }
 }
@@ -202,7 +181,6 @@ private fun ShelfRow(
             color = Color.White,
             modifier = Modifier.padding(horizontal = 16.dp),
         )
-
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -221,9 +199,7 @@ private fun ShelfCard(item: ShelfItem, onClick: () -> Unit) {
             .width(140.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White.copy(alpha = 0.08f),
-        ),
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.08f)),
         elevation = CardDefaults.cardElevation(0.dp),
     ) {
         Box {
@@ -241,15 +217,15 @@ private fun ShelfCard(item: ShelfItem, onClick: () -> Unit) {
                     .fillMaxWidth()
                     .height(200.dp)
                     .background(
-                        Brush.verticalGradient(
-                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)),
-                        ),
+                        Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.72f))),
                         RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
                     ),
             )
         }
-
-        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
             Text(
                 text = item.title,
                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
@@ -306,6 +282,5 @@ fun ShelfSpotlightSheet(item: ShelfItem) {
                 }
             }
         }
-        Spacer(modifier = Modifier.height(8.dp))
     }
 }
