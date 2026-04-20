@@ -42,6 +42,7 @@ import eu.kanade.tachiyomi.ui.history.HistoryTab
 import eu.kanade.tachiyomi.ui.library.LibraryTab
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.more.MoreTab
+import eu.kanade.tachiyomi.ui.shelf.ShelfTab
 import eu.kanade.tachiyomi.ui.updates.UpdatesTab
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
@@ -76,6 +77,7 @@ object HomeScreen : Screen() {
         UpdatesTab,
         HistoryTab,
         BrowseTab,
+        ShelfTab,
         MoreTab,
     )
 
@@ -162,6 +164,7 @@ object HomeScreen : Screen() {
                                 }
                                 BrowseTab
                             }
+                            Tab.Shelf -> ShelfTab
                             is Tab.More -> MoreTab
                         }
 
@@ -307,6 +310,7 @@ object HomeScreen : Screen() {
         data object Updates : Tab
         data object History : Tab
         data class Browse(val toExtensions: Boolean = false) : Tab
+        data object Shelf : Tab
         data class More(val toDownloads: Boolean) : Tab
     }
 }
