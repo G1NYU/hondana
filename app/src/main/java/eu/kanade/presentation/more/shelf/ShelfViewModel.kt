@@ -9,6 +9,9 @@ import kotlinx.coroutines.launch
 
 class ShelfViewModel(
     private val repository: ShelfRepository = ShelfRepository(),
+    private val aniListUser: String = "G1NYU",
+    private val lastFmApiKey: String = "",
+    private val lastFmUser: String = "G1NYU",
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ShelfUiState(loading = true))
@@ -20,7 +23,15 @@ class ShelfViewModel(
 
     fun refresh() {
         viewModelScope.launch {
-            _state.value = repository.getDemoState()
+            _state.value = ShelfUiState(loading = true)
+
+            val aniState = repository.getAniListShelf(aniListUser)
+            val music = repository.getLastFmTop(lastFmApiKey, lastFmUser)
+
+            _state.value = aniState.copy(
+                music = music,
+                loading = false,
+            )
         }
     }
 }

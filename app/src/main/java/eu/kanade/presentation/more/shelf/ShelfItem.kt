@@ -11,3 +11,13 @@ data class ShelfItem(
     val tags: List<String> = emptyList(),
     val sourceUrl: String = "",
 )
+
+@Immutable
+data class ShelfUiState(
+    val featured: ShelfItem? = null,
+    val manga: List<ShelfItem> = emptyList(),
+    val manhwa: List<ShelfItem> = emptyList(),
+    val music: List<ShelfItem> = emptyList(),
+    val books: List<ShelfItem> = emptyList(),
+    val loading: Boolean = false,
+)
